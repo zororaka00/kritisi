@@ -1,0 +1,46 @@
+{
+  "name": "kritisi",
+  "version": "1.0.0",
+  "description": "A powerful AI-driven security audit tool for Solidity smart contracts, designed to detect vulnerabilities, enhance code quality, and ensure compliance with best practices. Ideal for developers seeking fast, reliable security insights.",
+  "main": "dist/index.js",
+  "bin": {
+    "kritisi": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zororaka00/kritisi.git"
+  },
+  "homepage": "https://www.kritisi.xyz",
+  "funding": {
+    "type": "patreon",
+    "url": "https://www.patreon.com/zororaka"
+  },
+  "keywords": [
+    "ethereum",
+    "smart-contract",
+    "solidity",
+    "tooling",
+    "ai",
+    "chatgpt",
+    "security",
+    "audit",
+    "blockchain",
+    "vulnerability"
+  ],
+  "author": "Raka Widhi Antoro",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "node-fetch": "^3.3.2",
+    "ora": "^8.1.1",
+    "pdfkit": "^0.15.1"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.13.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
