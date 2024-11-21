@@ -13,11 +13,7 @@
     "type": "git",
     "url": "https://github.com/zororaka00/kritisi.git"
   },
-  "homepage": "https://www.kritisi.xyz",
-  "funding": {
-    "type": "patreon",
-    "url": "https://www.patreon.com/zororaka"
-  },
+  "homepage": "https://github.com/zororaka00/kritisi/blob/main/README.md",
   "keywords": [
     "ethereum",
     "smart-contract",
