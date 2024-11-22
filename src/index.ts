@@ -3,7 +3,7 @@ import ora from 'ora';
 import path from 'path';
 import fs from 'fs';
 
-import { CONFIG_PATH, generatePDF, loadKey, saveKey } from './helper';
+import { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel } from './helper';
 import { Groq, OpenAI } from './ai';
 import { ResponseAi, ResultSecurityAi } from './types';
 
@@ -34,6 +34,29 @@ Example:
       const key = data.toString().trim();
       saveKey(key, aiService);
       spinner.succeed('Key has been successfully saved.');
+    });
+  });
+
+program
+  .command("setmodel")
+  .description("Set the AI model for the selected service")
+  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
+  .addHelpText(
+    'after',
+    `
+Example:
+  $ npx kritisi setmodel --service openai
+  Enter the model for openai or groq (e.g., 'gpt-4', 'llama-3.1-70b-versatile'):
+  (You will be prompted to input the model interactively.)`
+  )
+  .action((options) => {
+    const aiService = options?.service && options?.service == 'groq' ? 'groq' : 'openai';
+    process.stdout.write(`Enter the model name for ${aiService} (e.g., 'gpt-4', 'llama-3.1-70b-versatile'): `);
+    process.stdin.once("data", (data) => {
+      const spinner = ora('Processing...').start();
+      const modelName = data.toString().trim();
+      saveModel(modelName, aiService);
+      spinner.succeed(`Model '${modelName}' has been successfully set for ${aiService}.`);
     });
   });
 

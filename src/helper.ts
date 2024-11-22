@@ -13,6 +13,12 @@ export function saveKey(newApiKey: string, service: 'openai' | 'groq') {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
 }
 
+export function saveModel(newModel: string, service: 'openai' | 'groq') {
+    let newConfig = Config;
+    newConfig[service].model = newModel;
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+}
+
 export function loadKey(service: 'openai' | 'groq'): string | null {
     const dataKey = Config[service];
     return dataKey && dataKey.apiKey.length > 0 ? dataKey.apiKey : null;
