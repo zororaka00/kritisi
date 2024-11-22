@@ -1,5 +1,7 @@
 # Kritisi: AI-Powered Security Audit Tool for Solidity Smart Contracts
 
+[![CodeFactor](https://www.codefactor.io/repository/github/zororaka00/kritisi/badge/main)](https://www.codefactor.io/repository/github/zororaka00/kritisi)[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zororaka00_kritisi&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zororaka00_kritisi)
+
 **Kritisi** is an AI-powered tool designed to analyze the security and documentation of Solidity code. This tool helps developers detect vulnerabilities, improve code quality, and ensure compliance with best practices.
 
 ---
