@@ -48,6 +48,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
 
    Commands:
      setkey                 Set an API key for the selected service
+     setmodel               Set the AI model for the selected service
      natspec                Process NatSpec documentation for Solidity files
      security               Run a security audit for Solidity smart contracts
      help                   Display help information for available commands
@@ -134,36 +135,6 @@ The results are presented as a JSON report converted into a PDF file like this:
   "low": []
 }
 ```
-
-## 🔧 Development
-
-### Running Locally
-
-To run the tool locally, follow these steps:
-
-1. Clone this repository:
-
-   ```bash
-   git clone https://github.com/username/kritisi.git
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   ```
-
-3. Build the tool:
-
-   ```bash
-   npm run build
-   ```
-
-4. Run the tool:
-
-   ```bash
-   node dist/index.js
-   ```
 
 ## 🤝 Contributing
 
