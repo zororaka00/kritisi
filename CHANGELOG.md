@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.5.0](https://github.com/zororaka00/kritisi/compare/v1.4.0...v1.5.0) (2024-11-22)
+
+
+### Features
+
+* Update README.md for added code factor & vulnerabilities ([0ad70af](https://github.com/zororaka00/kritisi/commit/0ad70af15b147156fc3ef62a715c8b3cc1b532b8))
+
 ## [1.4.0](https://github.com/zororaka00/kritisi/compare/v1.3.0...v1.4.0) (2024-11-22)
 
 

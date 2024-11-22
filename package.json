@@ -1,6 +1,6 @@
 {
   "name": "kritisi",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "A powerful AI-driven security audit tool for Solidity smart contracts, designed to detect vulnerabilities, enhance code quality, and ensure compliance with best practices. Ideal for developers seeking fast, reliable security insights.",
   "main": "src/index.js",
   "bin": {
