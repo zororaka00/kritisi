@@ -1,30 +1,28 @@
-import fs from 'fs';
-import path from 'path';
-import PDFDocument from 'pdfkit';
+const fs = require('fs');
+const path = require('path');
+const PDFDocument = require('pdfkit');
 
-import Config from './config.json';
-import { ResultSecurityAi } from './types';
+const Config = require('./config.json');
+const CONFIG_PATH = path.join(__dirname, 'config.json');
 
-export const CONFIG_PATH = path.join(__dirname, 'config.json');
-
-export function saveKey(newApiKey: string, service: 'openai' | 'groq') {
+function saveKey(newApiKey, service) {
     let newConfig = Config;
     newConfig[service].apiKey = newApiKey;
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
 }
 
-export function saveModel(newModel: string, service: 'openai' | 'groq') {
+function saveModel(newModel, service) {
     let newConfig = Config;
     newConfig[service].model = newModel;
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(newConfig, null, 2));
 }
 
-export function loadKey(service: 'openai' | 'groq'): string | null {
+function loadKey(service) {
     const dataKey = Config[service];
     return dataKey && dataKey.apiKey.length > 0 ? dataKey.apiKey : null;
 }
 
-export function generatePDF(result: ResultSecurityAi, filePath: string): Promise<boolean> {
+function generatePDF(result, filePath) {
     return new Promise((resolve, reject) => {
         try {
             // Ensure the directory exists
@@ -62,9 +60,9 @@ export function generatePDF(result: ResultSecurityAi, filePath: string): Promise
 
             // Helper function to write each category
             const writeCategory = (
-                title: string,
-                color: string,
-                issues: { issue: string; suggestion: string; code_highlight: string }[]
+                title,
+                color,
+                issues
             ) => {
                 // Write the category title
                 doc
@@ -125,8 +123,15 @@ export function generatePDF(result: ResultSecurityAi, filePath: string): Promise
             doc.end();
             output.on('finish', () => resolve(true));
         } catch (error) {
-            console.log({error})
+            console.log({ error });
             reject(false);
         }
     });
 }
+
+module.exports = {
+    saveKey,
+    saveModel,
+    loadKey,
+    generatePDF,
+};

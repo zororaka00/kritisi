@@ -1,11 +1,11 @@
-import { Command } from 'commander';
-import ora from 'ora';
-import path from 'path';
-import fs from 'fs';
+#!/usr/bin/env node
+const { Command } = require('commander');
+const ora = require('ora');
+const path = require('path');
+const fs = require('fs');
 
-import { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel } from './helper';
-import { Groq, OpenAI } from './ai';
-import { ResponseAi, ResultSecurityAi } from './types';
+const { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel } = require('./helper');
+const { Groq, OpenAI } = require('./ai');
 
 const program = new Command();
 
@@ -87,7 +87,7 @@ Example:
           const ai = aiService === 'openai' ? new OpenAI() : new Groq();
           ai.run(promptText, codeSolidity)
             .then((responseAi) => {
-              fs.writeFile(configPath, (responseAi as ResponseAi)?.content, 'utf-8', (errFs) => {
+              fs.writeFile(configPath, responseAi?.content, 'utf-8', (errFs) => {
                 if (errFs) {
                   spinner.fail(`Error writing NatSpec to file: ${errFs}`);
                 } else {
@@ -163,7 +163,7 @@ Example:
           ai.run(promptText, codeSolidity)
             .then((responseAi) => {
               const pdfPath = configPath.replace('.sol', '.pdf');
-              generatePDF(JSON.parse((responseAi as any)?.content) as ResultSecurityAi, pdfPath)
+              generatePDF(JSON.parse(responseAi?.content), pdfPath)
               .then(() => spinner.succeed(`Security report saved at: ${pdfPath}`))
               .catch(() => spinner.fail('Something went wrong while generating the PDF.'));
             })
