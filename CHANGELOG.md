@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/zororaka00/kritisi/compare/v1.2.1...v1.3.0) (2024-11-22)
+
+
+### Features
+
+* change ts to js and fixing command ([abbde84](https://github.com/zororaka00/kritisi/commit/abbde847989ab91c75fb304563413a046c81c4e4))
+
 ### [1.2.1](https://github.com/zororaka00/kritisi/compare/v1.2.0...v1.2.1) (2024-11-22)
 
 
