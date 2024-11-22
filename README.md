@@ -70,7 +70,22 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
 
    You will be prompted to enter your API key.
 
-3. **Add NatSpec Documentation**
+3. **Set AI Model**
+   Set the AI model for the selected service, use the following command:
+
+   ```bash
+   kritisi setmodel --service <service>
+   ```
+
+   `<service>`: Specify the service to be used, such as `openai` or `groq`. Example:
+
+   ```bash
+   kritisi setmodel --service openai
+   ```
+
+   You will be prompted to input the model name interactively.
+
+4. **Add NatSpec Documentation**
    To automatically add NatSpec documentation to your Solidity code, use the following command:
 
    ```bash
