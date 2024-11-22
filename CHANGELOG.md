@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.2.1](https://github.com/zororaka00/kritisi/compare/v1.2.0...v1.2.1) (2024-11-22)
+
+
+### Bug Fixes
+
+* fixing run global command ([b1e0b84](https://github.com/zororaka00/kritisi/commit/b1e0b846efc038083afa364433f2c211576a63e0))
+
 ## [1.2.0](https://github.com/zororaka00/kritisi/compare/v1.1.0...v1.2.0) (2024-11-22)
 
 
