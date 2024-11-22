@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/zororaka00/kritisi/compare/v1.1.0...v1.2.0) (2024-11-22)
+
+
+### Features
+
+* update README.md for tutorial setmodel ([a728700](https://github.com/zororaka00/kritisi/commit/a728700659511bb3bcde82d6a5b2ad41325fac4c))
+
 ## 1.1.0 (2024-11-22)
 
 
