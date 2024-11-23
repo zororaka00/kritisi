@@ -22,6 +22,10 @@ function loadKey(service) {
     return dataKey && dataKey.apiKey.length > 0 ? dataKey.apiKey : null;
 }
 
+function saveFile(pathFile, content) {
+    fs.writeFileSync(pathFile, content);
+}
+
 function generatePDF(result, filePath) {
     return new Promise((resolve, reject) => {
         try {
@@ -133,5 +137,6 @@ module.exports = {
     saveKey,
     saveModel,
     loadKey,
+    saveFile,
     generatePDF,
 };

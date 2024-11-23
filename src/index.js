@@ -3,8 +3,9 @@ const { Command } = require('commander');
 const ora = require('ora');
 const path = require('path');
 const fs = require('fs');
+const { merge } = require('sol-merger');
 
-const { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel } = require('./helper');
+const { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel, saveFile } = require('./helper');
 const { Groq, OpenAI } = require('./ai');
 
 const program = new Command();
@@ -22,7 +23,7 @@ program
     'after',
     `
 Example:
-  $ npx kritisi setkey --service openai
+  $ kritisi setkey --service openai
   Enter the API key openai:
   (You will be prompted to input your API key interactively.)`
   )
@@ -45,7 +46,7 @@ program
     'after',
     `
 Example:
-  $ npx kritisi setmodel --service openai
+  $ kritisi setmodel --service openai
   Enter the model for openai or groq (e.g., 'gpt-4', 'llama-3.1-70b-versatile'):
   (You will be prompted to input the model interactively.)`
   )
@@ -61,6 +62,30 @@ Example:
   });
 
 program
+  .command("merger")
+  .description("Merge all imported Solidity files into a single file")
+  .option("--path <path>", "Specify the path to the Solidity file to be merged")
+  .addHelpText(
+    'after',
+    `
+Example:
+  $ kritisi merger --path ./contracts/MyContract.sol
+  (This command will merge all imports in the specified Solidity file into one file with '_merge' appended to its name.)`
+  )
+  .action(async (options) => {
+    const spinner = ora('Processing...').start();
+    if (options?.path) {
+      const filePath = path.resolve(options.path);
+      const mergedCode = await merge(filePath);
+      const mergedFilePath = filePath.replace('.sol', '_merge.sol');
+      await saveFile(mergedFilePath, mergedCode);
+      spinner.succeed(`Files merged successfully. Output file: ${mergedFilePath}`);
+    } else {
+      spinner.fail('No path specified. Use --path <path> to provide the Solidity file path.');
+    }
+  });
+
+program
   .command("natspec")
   .description("Process NatSpec documentation for Solidity files")
   .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
@@ -69,7 +94,7 @@ program
     'after',
     `
 Example:
-  $ npx kritisi natspec --service openai --path ./contracts/MyContract.sol
+  $ kritisi natspec --service openai --path ./contracts/MyContract.sol
   (Processes the file and adds NatSpec documentation.)`
   )
   .action(async (options) => {
@@ -112,7 +137,7 @@ program
     'after',
     `
 Example:
-  $ npx kritisi security --service groq --path ./contracts/MyContract.sol
+  $ kritisi security --service groq --path ./contracts/MyContract.sol
   (Analyzes the file and generates a security report in PDF format.)`
   )
   .action((options) => {

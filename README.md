@@ -1,6 +1,7 @@
+
 # Kritisi: AI-Powered Security Audit Tool for Solidity Smart Contracts
 
-[![CodeFactor](https://www.codefactor.io/repository/github/zororaka00/kritisi/badge/main)](https://www.codefactor.io/repository/github/zororaka00/kritisi)[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zororaka00_kritisi&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zororaka00_kritisi)
+[![CodeFactor](https://www.codefactor.io/repository/github/zororaka00/kritisi/badge/main)](https://www.codefactor.io/repository/github/zororaka00/kritisi) [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zororaka00_kritisi&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zororaka00_kritisi)
 
 **Kritisi** is an AI-powered tool designed to analyze the security and documentation of Solidity code. This tool helps developers detect vulnerabilities, improve code quality, and ensure compliance with best practices.
 
@@ -10,6 +11,7 @@
 
 - **Security Audit**: Analyze Solidity code to identify security vulnerabilities with structured reporting.
 - **NatSpec Documentation**: Automatically add NatSpec documentation to functions within Solidity code.
+- **Code Merging**: Merge all imported Solidity files into a single file for streamlined development.
 - **Ease of Use**: CLI-based, allowing for simple and efficient interaction.
 - **AI Service Support**: Supports OpenAI and Groq services for flexibility.
 
@@ -53,6 +55,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
      setmodel               Set the AI model for the selected service
      natspec                Process NatSpec documentation for Solidity files
      security               Run a security audit for Solidity smart contracts
+     merger                 Merge all imported Solidity files into a single file
      help                   Display help information for available commands
 
    Run 'kritisi <command> --help' for detailed usage of a specific command.
@@ -102,7 +105,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi natspec --service openai --path ./contracts/MyContract.sol
    ```
 
-4. **Security Audit**
+5. **Security Audit**
    To run a security audit on your Solidity contracts, use:
 
    ```bash
@@ -116,7 +119,24 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi security --service groq --path ./contracts/MyContract.sol
    ```
 
-The audit results will be saved as a PDF file in the same location as your Solidity file.
+   The audit results will be saved as a PDF file in the same location as your Solidity file.
+
+6. **Merge Solidity Files**
+   To merge all imported Solidity files into a single file, use:
+
+   ```bash
+   kritisi merger --path <path>
+   ```
+
+   `<path>`: Specify the path to your Solidity file. Example:
+
+   ```bash
+   kritisi merger --path ./contracts/MyContract.sol
+   ```
+
+   The merged file will be saved with `_merge` appended to the original file name.
+
+---
 
 ## 📂 Example Output
 
@@ -137,6 +157,16 @@ The results are presented as a JSON report converted into a PDF file like this:
   "low": []
 }
 ```
+
+### File Merge
+
+Upon successful merging, the output will indicate the location of the merged file:
+
+```
+✔ Files merged successfully. Output file: /absolute/path/to/MyContract_merge.sol
+```
+
+---
 
 ## 🤝 Contributing
 
