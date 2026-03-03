@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+const { createRequire } = require('module');
+const requirePkg = createRequire(__filename);
+const { version } = requirePkg('../package.json');
 const { Command } = require('commander');
 const ora = require('ora');
 const path = require('path');
@@ -13,7 +16,7 @@ const program = new Command();
 program
   .name("kritisi")
   .description("A powerful AI-driven security audit tool for Solidity smart contracts, designed to detect vulnerabilities, enhance code quality, and ensure compliance with best practices. Ideal for developers seeking fast, reliable security insights.")
-  .version("1.6.0");
+  .version(version);
 
 program
   .command("setkey")
@@ -47,12 +50,12 @@ program
     `
 Example:
   $ kritisi setmodel --service openai
-  Enter the model for openai or claude (e.g., 'gpt-4', 'claude-opus-4-6-20250219'):
+  Enter the model for openai or claude (e.g., 'gpt-5.2', 'claude-opus-4-6'):
   (You will be prompted to input the model interactively.)`
   )
   .action((options) => {
     const aiService = options?.service && options?.service == 'claude' ? 'claude' : 'openai';
-    process.stdout.write(`Enter the model name for ${aiService} (e.g., 'gpt-4', 'claude-opus-4-6-20250219'): `);
+    process.stdout.write(`Enter the model name for ${aiService} (e.g., 'gpt-5.2', 'claude-opus-4-6'): `);
     process.stdin.once("data", (data) => {
       const spinner = ora('Processing...').start();
       const modelName = data.toString().trim();
