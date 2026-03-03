@@ -1,8 +1,6 @@
 
 # Kritisi: AI-Powered Security Audit Tool for Solidity Smart Contracts
 
-[![CodeFactor](https://www.codefactor.io/repository/github/zororaka00/kritisi/badge/main)](https://www.codefactor.io/repository/github/zororaka00/kritisi) [![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=zororaka00_kritisi&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=zororaka00_kritisi)
-
 **Kritisi** is an AI-powered tool designed to analyze the security and documentation of Solidity code. This tool helps developers detect vulnerabilities, improve code quality, and ensure compliance with best practices.
 
 ---
@@ -13,7 +11,7 @@
 - **NatSpec Documentation**: Automatically add NatSpec documentation to functions within Solidity code.
 - **Code Merging**: Merge all imported Solidity files into a single file for streamlined development.
 - **Ease of Use**: CLI-based, allowing for simple and efficient interaction.
-- **AI Service Support**: Supports OpenAI and Groq services for flexibility.
+- **AI Service Support**: Supports OpenAI and Claude services for flexibility.
 
 ---
 
@@ -68,7 +66,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi setkey --service <service>
    ```
 
-   `<service>`: Specify the service to be used, such as `openai` or `groq`. Example:
+   `<service>`: Specify the service to be used, such as `openai` or `claude`. Example:
 
    ```bash
    kritisi setkey --service openai
@@ -83,7 +81,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi setmodel --service <service>
    ```
 
-   `<service>`: Specify the service to be used, such as `openai` or `groq`. Example:
+   `<service>`: Specify the service to be used, such as `openai` or `claude`. Example:
 
    ```bash
    kritisi setmodel --service openai
@@ -98,7 +96,7 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi natspec --service <service> --path <path>
    ```
 
-   `<service>`: Specify the AI service (e.g., `openai` or `groq`).  
+   `<service>`: Specify the AI service (e.g., `openai` or `claude`).  
    `<path>`: Specify the path to your Solidity file. Example:
 
    ```bash
@@ -112,11 +110,11 @@ Once **Kritisi** is installed globally, you can use it from the command line by 
    kritisi security --service <service> --path <path>
    ```
 
-   `<service>`: Specify the AI service (e.g., `openai` or `groq`).  
+   `<service>`: Specify the AI service (e.g., `openai` or `claude`).  
    `<path>`: Specify the path to your Solidity file. Example:
 
    ```bash
-   kritisi security --service groq --path ./contracts/MyContract.sol
+   kritisi security --service claude --path ./contracts/MyContract.sol
    ```
 
    The audit results will be saved as a PDF file in the same location as your Solidity file.

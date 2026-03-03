@@ -2,11 +2,11 @@
   "openai": {
     "url": "https://api.openai.com/v1/chat/completions",
     "apiKey": "",
-    "model": "gpt-4"
+    "model": "gpt-5.2"
   },
-  "groq": {
-    "url": "https://api.groq.com/openai/v1/chat/completions",
+  "claude": {
+    "url": "https://api.anthropic.com/v1/messages",
     "apiKey": "",
-    "model": "llama-3.1-70b-versatile"
+    "model": "claude-opus-4-6"
   }
 }

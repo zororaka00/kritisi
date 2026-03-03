@@ -1,25 +1,23 @@
 const fetch = require('node-fetch');
 const Config = require('../config.json');
 
-class Groq {
+class Claude {
     run(promptText, codeSolidity) {
         return new Promise((resolve, reject) => {
-            fetch(Config.groq.url, {
+            fetch(Config.claude.url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${Config.groq.apiKey}`
+                    "x-api-key": Config.claude.apiKey,
+                    "anthropic-version": "2023-06-01"
                 },
                 body: JSON.stringify({
-                    model: Config.groq.model,
+                    model: Config.claude.model,
+                    max_tokens: 4096,
                     messages: [
                         {
-                            "role": "system",
-                            "content": promptText
-                        },
-                        {
                             "role": "user",
-                            "content": codeSolidity
+                            "content": `System: ${promptText}\n\nUser: ${codeSolidity}`
                         }
                     ]
                 })
@@ -30,13 +28,13 @@ class Groq {
                     reject(data.error.message);
                 } else {
                     resolve({
-                        model: Config.groq.model,
+                        model: Config.claude.model,
                         usage: {
-                            prompt_tokens: data.usage.prompt_tokens,
-                            completion_tokens: data.usage.completion_tokens,
-                            total_tokens: data.usage.total_tokens
+                            prompt_tokens: data.usage.input_tokens,
+                            completion_tokens: data.usage.output_tokens,
+                            total_tokens: data.usage.input_tokens + data.usage.output_tokens
                         },
-                        content: data.choices[0].message.content
+                        content: data.content[0].text
                     });
                 }
             })
@@ -45,4 +43,4 @@ class Groq {
     }
 }
 
-module.exports = Groq;
+module.exports = Claude;

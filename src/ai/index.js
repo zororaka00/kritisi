@@ -1,4 +1,4 @@
 module.exports = {
-    Groq: require('./groq'),
+    Claude: require('./claude'),
     OpenAI: require('./openai')
 };

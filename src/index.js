@@ -6,19 +6,19 @@ const fs = require('fs');
 const { merge } = require('sol-merger');
 
 const { CONFIG_PATH, generatePDF, loadKey, saveKey, saveModel, saveFile } = require('./helper');
-const { Groq, OpenAI } = require('./ai');
+const { Claude, OpenAI } = require('./ai');
 
 const program = new Command();
 
 program
   .name("kritisi")
   .description("A powerful AI-driven security audit tool for Solidity smart contracts, designed to detect vulnerabilities, enhance code quality, and ensure compliance with best practices. Ideal for developers seeking fast, reliable security insights.")
-  .version("1.0.0");
+  .version("1.6.0");
 
 program
   .command("setkey")
   .description("Set an API key for the selected service")
-  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
+  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'claude')")
   .addHelpText(
     'after',
     `
@@ -28,7 +28,7 @@ Example:
   (You will be prompted to input your API key interactively.)`
   )
   .action((options) => {
-    const aiService = options?.service && options?.service == 'groq' ? 'groq' : 'openai';
+    const aiService = options?.service && options?.service == 'claude' ? 'claude' : 'openai';
     process.stdout.write(`Enter the API key ${aiService}: `);
     process.stdin.once("data", (data) => {
       const spinner = ora('Processing...').start();
@@ -41,18 +41,18 @@ Example:
 program
   .command("setmodel")
   .description("Set the AI model for the selected service")
-  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
+  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'claude')")
   .addHelpText(
     'after',
     `
 Example:
   $ kritisi setmodel --service openai
-  Enter the model for openai or groq (e.g., 'gpt-4', 'llama-3.1-70b-versatile'):
+  Enter the model for openai or claude (e.g., 'gpt-4', 'claude-opus-4-6-20250219'):
   (You will be prompted to input the model interactively.)`
   )
   .action((options) => {
-    const aiService = options?.service && options?.service == 'groq' ? 'groq' : 'openai';
-    process.stdout.write(`Enter the model name for ${aiService} (e.g., 'gpt-4', 'llama-3.1-70b-versatile'): `);
+    const aiService = options?.service && options?.service == 'claude' ? 'claude' : 'openai';
+    process.stdout.write(`Enter the model name for ${aiService} (e.g., 'gpt-4', 'claude-opus-4-6-20250219'): `);
     process.stdin.once("data", (data) => {
       const spinner = ora('Processing...').start();
       const modelName = data.toString().trim();
@@ -88,7 +88,7 @@ Example:
 program
   .command("natspec")
   .description("Process NatSpec documentation for Solidity files")
-  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
+  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'claude')")
   .option("--path <path>", "Path to the Solidity file")
   .addHelpText(
     'after',
@@ -101,7 +101,7 @@ Example:
     const spinner = ora('Processing...').start();
     const configPath = options.path ? path.resolve(options.path) : CONFIG_PATH;
 
-    const aiService = options?.service && options?.service == 'groq' ? 'groq' : 'openai';
+    const aiService = options?.service && options?.service == 'claude' ? 'claude' : 'openai';
     const storedKey = loadKey(aiService);
     if (storedKey) {
       const promptText = "You are an AI designed to add NatSpec documentation to Solidity code. For each function, include clear descriptions for the purpose of the function, the parameters, and the return values using proper NatSpec tags. Respond only with the modified Solidity code in a valid Solidity format. Do not include any code block markers, additional explanations, or characters unrelated to the Solidity code itself.";
@@ -109,7 +109,7 @@ Example:
         if (err) {
           spinner.fail(`Error reading file: ${err}`);
         } else {
-          const ai = aiService === 'openai' ? new OpenAI() : new Groq();
+          const ai = aiService === 'openai' ? new OpenAI() : new Claude();
           ai.run(promptText, codeSolidity)
             .then((responseAi) => {
               fs.writeFile(configPath, responseAi?.content, 'utf-8', (errFs) => {
@@ -131,20 +131,20 @@ Example:
 program
   .command("security")
   .description("Run a security audit for Solidity smart contracts")
-  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'groq')")
+  .option("--service <service>", "Specify the AI service to use (e.g., 'openai' or 'claude')")
   .option("--path <path>", "Path to the Solidity file")
   .addHelpText(
     'after',
     `
 Example:
-  $ kritisi security --service groq --path ./contracts/MyContract.sol
+  $ kritisi security --service claude --path ./contracts/MyContract.sol
   (Analyzes the file and generates a security report in PDF format.)`
   )
   .action((options) => {
     const spinner = ora('Processing...').start();
     const configPath = options.path ? path.resolve(options.path) : CONFIG_PATH;
 
-    const aiService = options?.service && options?.service == 'groq' ? 'groq' : 'openai';
+    const aiService = options?.service && options?.service == 'claude' ? 'claude' : 'openai';
     const storedKey = loadKey(aiService);
     if (storedKey) {
       const promptText = `You are an AI designed to analyze Solidity code for potential issues in business logic and security vulnerabilities. Review the provided Solidity code and identify any issues or vulnerabilities, categorizing them by severity level as follows:
@@ -184,7 +184,7 @@ Example:
         if (err) {
           spinner.fail(`Error reading file: ${err}`);
         } else {
-          const ai = aiService === 'openai' ? new OpenAI() : new Groq();
+          const ai = aiService === 'openai' ? new OpenAI() : new Claude();
           ai.run(promptText, codeSolidity)
             .then((responseAi) => {
               const pdfPath = configPath.replace('.sol', '.pdf');
