@@ -56,7 +56,7 @@ program
   .command('setmodel')
   .description('Set the model for the selected provider in the user-local config file')
   .option(...serviceOption)
-  .addHelpText('after', '\nExamples: openai/gpt-4o-mini (OpenRouter), gpt-5.2 (OpenAI), claude-opus-4-6 (Claude), deepseek-chat (DeepSeek).')
+  .addHelpText('after', '\nExamples: openai/gpt-5.6-sol (OpenRouter), gpt-5.6-sol (OpenAI), claude-opus-5 (Claude), deepseek-v4-pro (DeepSeek).')
   .action((options: CommandOptions) => {
     const provider = normalizeProvider(options.service);
     process.stdout.write(`Enter the ${provider} model name: `);

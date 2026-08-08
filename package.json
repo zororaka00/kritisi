@@ -1,6 +1,6 @@
 {
   "name": "kritisi",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "AI-powered Solidity security auditing and NatSpec documentation CLI with multiple providers.",
   "main": "dist/library.js",
   "types": "dist/library.d.ts",

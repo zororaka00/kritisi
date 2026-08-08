@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.3.0](https://github.com/zororaka00/kritisi/compare/v2.2.0...v2.3.0) (2026-08-09)
+
+### Features
+
+* Hardened `parseSecurityReport` to accept security findings wrapped in markdown code fences or brief surrounding prose.
+* Strengthened the security audit prompt to request a single plain JSON object (no markdown fences).
+
+### Changed
+
+* Updated default models to the latest stable GA IDs: `openai/gpt-5.6-sol` (OpenRouter), `gpt-5.6-sol` (OpenAI), `claude-opus-5` (Claude), and `deepseek-v4-pro` (DeepSeek).
+* Updated CLI help text and README default-model documentation to match the new defaults.
+
+### Tests
+
+* Added unit coverage for fenced and invalid security report parsing.
+* Increased CLI spawn timeouts and ignore child stdin to reduce flaky cold-start failures on Windows.
+
 ## [2.2.0](https://github.com/zororaka00/kritisi/compare/v2.1.0...v2.2.0) (2026-08-08)
 
 ### Features

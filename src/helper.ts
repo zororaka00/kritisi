@@ -74,19 +74,19 @@ interface StoredConfig extends StoredProviderConfig {
 
 const DEFAULTS: Record<ProviderName, Omit<ProviderConfig, 'apiKey'>> = {
   openrouter: {
-    model: 'openai/gpt-4o-mini',
+    model: 'openai/gpt-5.6-sol',
     baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
   },
   openai: {
-    model: 'gpt-5.2',
+    model: 'gpt-5.6-sol',
     baseUrl: 'https://api.openai.com/v1/chat/completions',
   },
   claude: {
-    model: 'claude-opus-4-6',
+    model: 'claude-opus-5',
     baseUrl: 'https://api.anthropic.com/v1/messages',
   },
   deepseek: {
-    model: 'deepseek-chat',
+    model: 'deepseek-v4-pro',
     baseUrl: 'https://api.deepseek.com/chat/completions',
   },
 };

@@ -49,7 +49,7 @@ Environment variables take precedence over user-local configuration. Supply API 
 
 Provider-specific `*_BASE_URL` variables override the default endpoint: `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`/`CLAUDE_BASE_URL`, and `DEEPSEEK_BASE_URL`.
 
-Default models are `openai/gpt-4o-mini` (OpenRouter), `gpt-5.2` (OpenAI), `claude-opus-4-6` (Claude), and `deepseek-chat` (DeepSeek).
+Default models are `openai/gpt-5.6-sol` (OpenRouter), `gpt-5.6-sol` (OpenAI), `claude-opus-5` (Claude), and `deepseek-v4-pro` (DeepSeek).
 
 For example, with a placeholder key supplied outside the repository:
 
