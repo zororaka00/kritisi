@@ -1,183 +1,132 @@
+# Kritisi: Multi-provider Solidity Audit CLI and Library
 
-# Kritisi: AI-Powered Security Audit Tool for Solidity Smart Contracts
+Kritisi audits Solidity contracts, adds NatSpec documentation, merges imports, and writes security findings as PDF. It supports OpenRouter, OpenAI, Claude/Anthropic, and DeepSeek.
 
-**Kritisi** is an AI-powered tool designed to analyze the security and documentation of Solidity code. This tool helps developers detect vulnerabilities, improve code quality, and ensure compliance with best practices.
+## Requirements
 
----
+- Node.js 18 or newer
 
-## ✨ Key Features
+## Install
 
-- **Security Audit**: Analyze Solidity code to identify security vulnerabilities with structured reporting.
-- **NatSpec Documentation**: Automatically add NatSpec documentation to functions within Solidity code.
-- **Code Merging**: Merge all imported Solidity files into a single file for streamlined development.
-- **Ease of Use**: CLI-based, allowing for simple and efficient interaction.
-- **AI Service Support**: Supports OpenAI and Claude services for flexibility.
-
----
-
-## 🚀 Installation
-
-To use **Kritisi**, make sure you have the latest version of Node.js installed. Then, install the tool globally using the following command:
+Install the CLI globally:
 
 ```bash
-npm install -g kritisi
+npm install --global kritisi
+kritisi help
 ```
 
----
+Install the package locally when using the library or a project-local CLI:
 
-## 📘 Usage Instructions
+```bash
+npm install kritisi
+npx kritisi help
+```
 
-Once **Kritisi** is installed globally, you can use it from the command line by typing `kritisi` followed by the desired command. Here are the available commands:
+## CLI usage
 
-1. **View Help**
-   To see a list of available commands, use:
+```bash
+kritisi setkey --service <provider>
+kritisi setmodel --service <provider>
+kritisi natspec --service <provider> --path ./contracts/MyContract.sol
+kritisi security --service <provider> --path ./contracts/MyContract.sol
+kritisi merger --path ./contracts/MyContract.sol
+```
 
-   ```bash
-   kritisi help
-   ```
+`--service` selects the provider for `natspec`, `security`, `setkey`, and `setmodel`. Supported values are `openrouter` (the default), `openai`, `claude` (or `anthropic`), and `deepseek`. Omitting `--service` keeps the OpenRouter default.
 
-   Example output:
+`security` writes `MyContract.pdf` beside the Solidity source. `natspec` updates the source file in place. `merger` writes `MyContract_merge.sol` beside the source.
 
-   ```
-   Usage: kritisi [options] [command]
+## Providers and configuration
 
-   A powerful AI-driven security audit tool for Solidity smart contracts.
-   Detect vulnerabilities, enhance code quality, and ensure compliance with best practices.
+Environment variables take precedence over user-local configuration. Supply API keys through the environment or the interactive `setkey` command; do not commit them.
 
-   Options:
-     -V, --version           output the version number
-     -h, --help              display help for command
+| Provider | API key environment variable | Model environment variable | Default endpoint |
+| --- | --- | --- | --- |
+| OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` | `https://openrouter.ai/api/v1/chat/completions` |
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` | `https://api.openai.com/v1/chat/completions` |
+| Claude / Anthropic | `ANTHROPIC_API_KEY` or `CLAUDE_API_KEY` | `ANTHROPIC_MODEL` or `CLAUDE_MODEL` | `https://api.anthropic.com/v1/messages` |
+| DeepSeek | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL` | `https://api.deepseek.com/chat/completions` |
 
-   Commands:
-     setkey                 Set an API key for the selected service
-     setmodel               Set the AI model for the selected service
-     natspec                Process NatSpec documentation for Solidity files
-     security               Run a security audit for Solidity smart contracts
-     merger                 Merge all imported Solidity files into a single file
-     help                   Display help information for available commands
+Provider-specific `*_BASE_URL` variables override the default endpoint: `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`/`CLAUDE_BASE_URL`, and `DEEPSEEK_BASE_URL`.
 
-   Run 'kritisi <command> --help' for detailed usage of a specific command.
-   ```
+Default models are `openai/gpt-4o-mini` (OpenRouter), `gpt-5.2` (OpenAI), `claude-opus-4-6` (Claude), and `deepseek-chat` (DeepSeek).
 
-2. **Set API Key**
-   Before using the AI services, you need to set up your API key. Use the following command:
+For example, with a placeholder key supplied outside the repository:
 
-   ```bash
-   kritisi setkey --service <service>
-   ```
+```bash
+export OPENROUTER_API_KEY="<your-api-key>"
+export OPENROUTER_MODEL="<provider-model>"
+kritisi security --service openrouter --path ./contracts/MyContract.sol
+```
 
-   `<service>`: Specify the service to be used, such as `openai` or `claude`. Example:
+Keys, models, and endpoints can also be stored in the user-local file `~/.config/kritisi/config.json` (or `$XDG_CONFIG_HOME/kritisi/config.json`):
 
-   ```bash
-   kritisi setkey --service openai
-   ```
+```bash
+kritisi setkey --service openrouter
+kritisi setmodel --service openrouter
+kritisi setkey --service openai
+kritisi setmodel --service deepseek
+```
 
-   You will be prompted to enter your API key.
+The config directory is created with mode `0700` and the file with mode `0600`. `KRITISI_CONFIG_PATH` can select a different user-local path for automation. Keep that file outside source control.
 
-3. **Set AI Model**
-   Set the AI model for the selected service, use the following command:
+## Library usage
 
-   ```bash
-   kritisi setmodel --service <service>
-   ```
+The package's public library entrypoint is the package root (`dist/library.js` at build time). It exports the provider classes `OpenRouter`, `OpenAI`, `Claude`, and `DeepSeek`; `createProvider`; provider/config helpers (`getProviderConfig`, `getOpenRouterConfig`, `normalizeProvider`, `loadKey`, `saveKey`, `saveModel`, `saveBaseUrl`, `CONFIG_PATH`); and local utilities including `parseSecurityReport`, `generatePDF`, and `saveFile`.
 
-   `<service>`: Specify the service to be used, such as `openai` or `claude`. Example:
+CommonJS:
 
-   ```bash
-   kritisi setmodel --service openai
-   ```
+```js
+const {
+  OpenRouter,
+  OpenAI,
+  Claude,
+  DeepSeek,
+  createProvider,
+  getProviderConfig,
+  parseSecurityReport,
+} = require('kritisi');
 
-   You will be prompted to input the model name interactively.
+const provider = createProvider('openrouter');
+const config = getProviderConfig('openrouter');
+```
 
-4. **Add NatSpec Documentation**
-   To automatically add NatSpec documentation to your Solidity code, use the following command:
+TypeScript/ES modules can import the same named exports:
 
-   ```bash
-   kritisi natspec --service <service> --path <path>
-   ```
+```ts
+import { createProvider, parseSecurityReport } from 'kritisi';
+```
 
-   `<service>`: Specify the AI service (e.g., `openai` or `claude`).  
-   `<path>`: Specify the path to your Solidity file. Example:
+Constructing a provider or reading configuration does not make a network request. Calling a provider's `run` method requires the relevant API key and makes a request to its configured endpoint.
 
-   ```bash
-   kritisi natspec --service openai --path ./contracts/MyContract.sol
-   ```
+## Audit response
 
-5. **Security Audit**
-   To run a security audit on your Solidity contracts, use:
-
-   ```bash
-   kritisi security --service <service> --path <path>
-   ```
-
-   `<service>`: Specify the AI service (e.g., `openai` or `claude`).  
-   `<path>`: Specify the path to your Solidity file. Example:
-
-   ```bash
-   kritisi security --service claude --path ./contracts/MyContract.sol
-   ```
-
-   The audit results will be saved as a PDF file in the same location as your Solidity file.
-
-6. **Merge Solidity Files**
-   To merge all imported Solidity files into a single file, use:
-
-   ```bash
-   kritisi merger --path <path>
-   ```
-
-   `<path>`: Specify the path to your Solidity file. Example:
-
-   ```bash
-   kritisi merger --path ./contracts/MyContract.sol
-   ```
-
-   The merged file will be saved with `_merge` appended to the original file name.
-
----
-
-## 📂 Example Output
-
-### Security Audit
-
-The results are presented as a JSON report converted into a PDF file like this:
+The selected provider must return JSON in this shape for `security`:
 
 ```json
 {
-  "high": [
-    {
-      "issue": "Reentrancy vulnerability in withdraw function.",
-      "suggestion": "Use the Checks-Effects-Interactions pattern.",
-      "code_highlight": "function withdraw() public { ... }"
-    }
-  ],
+  "high": [{ "issue": "...", "suggestion": "...", "code_highlight": "..." }],
   "medium": [],
   "low": []
 }
 ```
 
-### File Merge
+HTTP failures, invalid JSON, and invalid response shapes are reported without writing a PDF.
 
-Upon successful merging, the output will indicate the location of the merged file:
+## Development and validation
 
+```bash
+npm ci
+npm run build
+npm test -- --runInBand
+node dist/index.js help
+node dist/index.js --version
+npm pack --dry-run
+npm publish --dry-run
 ```
-✔ Files merged successfully. Output file: /absolute/path/to/MyContract_merge.sol
-```
 
----
+The automated tests and release validation are network-free. They do not claim live provider testing; run any provider smoke test only with credentials intentionally supplied in the environment, without printing credentials or full API responses.
 
-## 🤝 Contributing
+## License
 
-We greatly appreciate your contributions! Please fork this repository and submit a pull request with your changes or additions.
-
-## 🛠 Support
-
-If you encounter any issues or have questions, please open an issue in this repository or contact us at rakawidhiantoro@gmail.com.
-
-## 📄 License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-🎉 Thank you for using **Kritisi**! We hope this tool proves beneficial in enhancing the security and quality of your smart contracts.
+MIT; see [LICENSE](LICENSE).

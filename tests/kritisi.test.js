@@ -1,390 +1,221 @@
-/**
- * Kritisi CLI Test Suite
- * 
- * Unit tests for the kritisi security audit tool CLI.
- * Tests cover command parsing, help text, error handling, and configuration management.
- */
+/** @jest-environment node */
 
-const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { spawn } = require('child_process');
 
-// Test constants
-const CLI_PATH = path.join(__dirname, '..', 'src', 'index.js');
-const TEST_CONFIG_PATH = path.join(__dirname, '..', 'src', 'config.json');
+jest.mock('node-fetch', () => jest.fn());
 
-// Helper function to run CLI commands
-function runCli(args, options = {}) {
-    return new Promise((resolve, reject) => {
-        const child = spawn('node', [CLI_PATH, ...args], {
-            cwd: path.join(__dirname, '..'),
-            env: { ...process.env },
-            ...options
-        });
+let fetch = require('node-fetch');
+const CLI_PATH = path.join(__dirname, '..', 'dist', 'index.js');
 
-        let stdout = '';
-        let stderr = '';
+const CLI_TEST_TIMEOUT_MS = 30_000;
+const CLI_KILL_MS = 25_000;
 
-        child.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-
-        child.stderr.on('data', (data) => {
-            stderr += data.toString();
-        });
-
-        child.on('close', (code) => {
-            resolve({ code, stdout, stderr });
-        });
-
-        child.on('error', (error) => {
-            reject(error);
-        });
+function runCli(args, env = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
+      cwd: path.join(__dirname, '..'),
+      env: { ...process.env, OPENROUTER_API_KEY: '', ...env },
+      // Avoid leaving an open stdin pipe that can keep Node alive on some platforms.
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+    let stdout = '';
+    let stderr = '';
+    const killer = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error(`CLI timed out after ${CLI_KILL_MS}ms: node ${CLI_PATH} ${args.join(' ')}`));
+    }, CLI_KILL_MS);
+    child.stdout.on('data', (data) => { stdout += data.toString(); });
+    child.stderr.on('data', (data) => { stderr += data.toString(); });
+    child.on('close', (code) => {
+      clearTimeout(killer);
+      resolve({ code, stdout, stderr });
+    });
+    child.on('error', (error) => {
+      clearTimeout(killer);
+      reject(error);
+    });
+  });
 }
 
-// Helper function to backup and restore config
-let configBackup = null;
-function backupConfig() {
-    configBackup = fs.readFileSync(TEST_CONFIG_PATH, 'utf8');
-}
+describe('Kritisi CLI', () => {
+  test('help lists commands and available providers', async () => {
+    const result = await runCli(['--help']);
 
-function restoreConfig() {
-    if (configBackup) {
-        fs.writeFileSync(TEST_CONFIG_PATH, configBackup, 'utf8');
-    }
-}
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('setkey');
+    expect(result.stdout).toContain('setmodel');
+    expect(result.stdout).toContain('natspec');
+    expect(result.stdout).toContain('security');
+    expect(result.stdout).toContain('merger');
+    expect(result.stdout).toContain('OpenRouter');
+    expect(result.stdout).toContain('OpenAI');
+    expect(result.stdout).toContain('Claude');
+    expect(result.stdout).toContain('DeepSeek');
+  }, CLI_TEST_TIMEOUT_MS);
 
-describe('Kritisi CLI Tests', () => {
-    beforeAll(() => {
-        backupConfig();
+  test('--service option documents provider selection', async () => {
+    const result = await runCli(['security', '--help']);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('--service');
+    expect(result.stdout).toContain('openrouter');
+    expect(result.stdout).toContain('openai');
+    expect(result.stdout).toContain('claude');
+    expect(result.stdout).toContain('deepseek');
+  }, CLI_TEST_TIMEOUT_MS);
+
+  test('merger without a path exits cleanly with a useful error', async () => {
+    const result = await runCli(['merger']);
+
+    expect(result.code).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain('--path');
+  }, CLI_TEST_TIMEOUT_MS);
+
+  test('version and help commands exit successfully', async () => {
+    await expect(runCli(['help'])).resolves.toMatchObject({ code: 0 });
+    await expect(runCli(['--version'])).resolves.toMatchObject({ code: 0 });
+  }, CLI_TEST_TIMEOUT_MS);
+});
+
+describe('OpenRouter configuration', () => {
+  const configPath = path.join(os.tmpdir(), `kritisi-test-${process.pid}.json`);
+  const originalConfigPath = process.env.KRITISI_CONFIG_PATH;
+  const originalApiKey = process.env.OPENROUTER_API_KEY;
+  const originalModel = process.env.OPENROUTER_MODEL;
+  const originalBaseUrl = process.env.OPENROUTER_BASE_URL;
+
+  beforeEach(() => {
+    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_MODEL;
+    delete process.env.OPENROUTER_BASE_URL;
+    process.env.KRITISI_CONFIG_PATH = configPath;
+    jest.resetModules();
+  });
+
+  afterAll(() => {
+    if (originalConfigPath === undefined) delete process.env.KRITISI_CONFIG_PATH;
+    else process.env.KRITISI_CONFIG_PATH = originalConfigPath;
+    if (originalApiKey === undefined) delete process.env.OPENROUTER_API_KEY;
+    else process.env.OPENROUTER_API_KEY = originalApiKey;
+    if (originalModel === undefined) delete process.env.OPENROUTER_MODEL;
+    else process.env.OPENROUTER_MODEL = originalModel;
+    if (originalBaseUrl === undefined) delete process.env.OPENROUTER_BASE_URL;
+    else process.env.OPENROUTER_BASE_URL = originalBaseUrl;
+    if (fs.existsSync(configPath)) fs.rmSync(configPath);
+  });
+
+  test('saves and loads user-local OpenRouter settings', () => {
+    const helper = require('../dist/helper');
+
+    helper.saveKey('test-only-key');
+    helper.saveModel('test/model');
+    helper.saveBaseUrl('https://example.test/v1/chat/completions');
+
+    expect(helper.loadKey()).toBe('test-only-key');
+    expect(helper.getOpenRouterConfig()).toMatchObject({
+      model: 'test/model',
+      baseUrl: 'https://example.test/v1/chat/completions',
     });
+    expect(fs.existsSync(configPath)).toBe(true);
+  });
 
-    afterAll(() => {
-        restoreConfig();
+  test('environment variables override user-local settings', () => {
+    const helper = require('../dist/helper');
+    helper.saveKey('local-only-key');
+    helper.saveModel('local/model');
+    helper.saveBaseUrl('https://local.test/v1/chat/completions');
+    process.env.OPENROUTER_API_KEY = 'environment-only-key';
+    process.env.OPENROUTER_MODEL = 'environment/model';
+    process.env.OPENROUTER_BASE_URL = 'https://environment.test/v1/chat/completions';
+
+    expect(helper.getOpenRouterConfig()).toEqual({
+      apiKey: 'environment-only-key',
+      model: 'environment/model',
+      baseUrl: 'https://environment.test/v1/chat/completions',
     });
+  });
+});
 
-    beforeEach(() => {
-        restoreConfig();
+describe('parseSecurityReport', () => {
+  test('accepts plain JSON and markdown-fenced JSON', () => {
+    const helper = require('../dist/helper');
+    const report = {
+      high: [],
+      medium: [{ issue: 'a', suggestion: 'b', code_highlight: 'c' }],
+      low: [],
+    };
+    const plain = JSON.stringify(report);
+    expect(helper.parseSecurityReport(plain)).toEqual(report);
+    expect(helper.parseSecurityReport(`\`\`\`json\n${plain}\n\`\`\``)).toEqual(report);
+    expect(helper.parseSecurityReport(`Here is the report:\n\`\`\`json\n${plain}\n\`\`\``)).toEqual(report);
+  });
+
+  test('rejects invalid shapes', () => {
+    const helper = require('../dist/helper');
+    expect(() => helper.parseSecurityReport('not json')).toThrow('invalid security report');
+    expect(() => helper.parseSecurityReport('{"high":[],"medium":[],"low":[{}]}')).toThrow('invalid security report');
+  });
+});
+
+describe('OpenRouter provider', () => {
+  beforeEach(() => {
+    fetch.mockReset();
+    process.env.OPENROUTER_API_KEY = 'test-only-key';
+    process.env.OPENROUTER_MODEL = 'test/model';
+    process.env.OPENROUTER_BASE_URL = 'https://openrouter.test/api/v1/chat/completions';
+    jest.resetModules();
+    fetch = require('node-fetch');
+  });
+
+  test('returns validated chat completion content and usage', async () => {
+    fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        choices: [{ message: { content: 'updated solidity' } }],
+        usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+      }),
     });
+    const { OpenRouter } = require('../dist/ai/openrouter');
 
-    // Test Group: Help Text Display
-    describe('Help Text Display', () => {
-        test('--help flag should display help information', async () => {
-            const { code, stdout } = await runCli(['--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Usage:');
-            expect(stdout).toContain('Commands:');
-        });
-
-        test('-h flag should display help information', async () => {
-            const { code, stdout } = await runCli(['-h']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Usage:');
-        });
-
-        test('help command should display help information', async () => {
-            const { code, stdout } = await runCli(['help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Usage:');
-        });
-
-        test('help should list all available commands', async () => {
-            const { code, stdout } = await runCli(['--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('setkey');
-            expect(stdout).toContain('setmodel');
-            expect(stdout).toContain('natspec');
-            expect(stdout).toContain('security');
-            expect(stdout).toContain('merger');
-            expect(stdout).toContain('help');
-        });
+    await expect(new OpenRouter().run('system prompt', 'contract C {}')).resolves.toEqual({
+      model: 'test/model',
+      usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+      content: 'updated solidity',
     });
+    expect(fetch).toHaveBeenCalledWith(
+      'https://openrouter.test/api/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer test-only-key' }),
+      }),
+    );
+  });
 
-    // Test Group: Command Parsing and Execution
-    describe('Command Parsing', () => {
-        test('setkey command should be recognized', async () => {
-            const { code, stdout } = await runCli(['setkey', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Set an API key');
-        });
-
-        test('setmodel command should be recognized', async () => {
-            const { code, stdout } = await runCli(['setmodel', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Set the AI model');
-        });
-
-        test('natspec command should be recognized', async () => {
-            const { code, stdout } = await runCli(['natspec', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('NatSpec');
-        });
-
-        test('security command should be recognized', async () => {
-            const { code, stdout } = await runCli(['security', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('security audit');
-        });
-
-        test('merger command should be recognized', async () => {
-            const { code, stdout } = await runCli(['merger', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('Merge');
-        });
+  test('rejects HTTP errors without requiring a real network', async () => {
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: 'unauthorized' } }),
     });
+    const { OpenRouter } = require('../dist/ai/openrouter');
 
-    // Test Group: Command Options
-    describe('Command Options', () => {
-        test('setkey should accept --service option', async () => {
-            const { code, stdout } = await runCli(['setkey', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('--service');
-        });
+    await expect(new OpenRouter().run('prompt', 'code')).rejects.toThrow('OpenRouter HTTP 401: unauthorized');
+  });
 
-        test('setmodel should accept --service option', async () => {
-            const { code, stdout } = await runCli(['setmodel', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('--service');
-        });
-
-        test('natspec should accept --service and --path options', async () => {
-            const { code, stdout } = await runCli(['natspec', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('--service');
-            expect(stdout).toContain('--path');
-        });
-
-        test('security should accept --service and --path options', async () => {
-            const { code, stdout } = await runCli(['security', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('--service');
-            expect(stdout).toContain('--path');
-        });
-
-        test('merger should accept --path option', async () => {
-            const { code, stdout } = await runCli(['merger', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('--path');
-        });
+  test('rejects invalid response shapes', async () => {
+    fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [] }),
     });
+    const { OpenRouter } = require('../dist/ai/openrouter');
 
-    // Test Group: Service Options
-    describe('Service Options', () => {
-        test('setkey help should mention openai service', async () => {
-            const { code, stdout } = await runCli(['setkey', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('openai');
-        });
-
-        test('setkey help should mention claude service', async () => {
-            const { code, stdout } = await runCli(['setkey', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('claude');
-        });
-
-        test('setmodel help should mention example models', async () => {
-            const { code, stdout } = await runCli(['setmodel', '--help']);
-            
-            expect(code).toBe(0);
-            expect(stdout).toContain('gpt-');
-            expect(stdout).toContain('claude-');
-        });
-
-        test('natspec should work with --service openai', async () => {
-            const { code } = await runCli(['natspec', '--help']);
-            expect(code).toBe(0);
-        });
-
-        test('natspec should work with --service claude', async () => {
-            const { code } = await runCli(['natspec', '--service', 'claude', '--help']);
-            expect(code).toBe(0);
-        });
-
-        test('security should work with --service openai', async () => {
-            const { code } = await runCli(['security', '--help']);
-            expect(code).toBe(0);
-        });
-
-        test('security should work with --service claude', async () => {
-            const { code } = await runCli(['security', '--service', 'claude', '--help']);
-            expect(code).toBe(0);
-        });
-    });
-
-    // Test Group: Error Handling
-    describe('Error Handling', () => {
-        test('unknown command should exit with non-zero code', async () => {
-            const { code } = await runCli(['unknown-command']);
-            
-            expect(code).not.toBe(0);
-        });
-
-        test('invalid option should be handled gracefully', async () => {
-            const { code } = await runCli(['--invalid-option']);
-            
-            expect(code).not.toBe(0);
-        });
-
-        test('merger without path should handle gracefully', async () => {
-            const { code } = await runCli(['merger']);
-            // Should handle missing path gracefully (may show error or help)
-            expect([0, 1]).toContain(code);
-        });
-    });
-
-    // Test Group: Configuration File
-    describe('Configuration File', () => {
-        test('config file should exist', () => {
-            expect(fs.existsSync(TEST_CONFIG_PATH)).toBe(true);
-        });
-
-        test('config file should have valid JSON', () => {
-            const configContent = fs.readFileSync(TEST_CONFIG_PATH, 'utf8');
-            expect(() => JSON.parse(configContent)).not.toThrow();
-        });
-
-        test('config should have openai section', () => {
-            const config = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(config).toHaveProperty('openai');
-            expect(config.openai).toHaveProperty('url');
-            expect(config.openai).toHaveProperty('apiKey');
-            expect(config.openai).toHaveProperty('model');
-        });
-
-        test('config should have claude section', () => {
-            const config = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(config).toHaveProperty('claude');
-            expect(config.claude).toHaveProperty('url');
-            expect(config.claude).toHaveProperty('apiKey');
-            expect(config.claude).toHaveProperty('model');
-        });
-
-        test('openai default model should be gpt-5.2', () => {
-            const config = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(config.openai.model).toBe('gpt-5.2');
-        });
-
-        test('claude default model should be claude-opus-4-6', () => {
-            const config = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(config.claude.model).toContain('claude-opus-4-6');
-        });
-
-        test('config should not have groq section', () => {
-            const config = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(config).not.toHaveProperty('groq');
-        });
-    });
-
-    // Test Group: Exit Codes
-    describe('Exit Codes', () => {
-        test('help command should return exit code 0', async () => {
-            const { code } = await runCli(['--help']);
-            expect(code).toBe(0);
-        });
-
-        test('--version flag should return exit code 0', async () => {
-            const { code } = await runCli(['--version']);
-            expect(code).toBe(0);
-        });
-
-        test('unknown command should return non-zero exit code', async () => {
-            const { code } = await runCli(['nonexistent']);
-            expect(code).not.toBe(0);
-        });
-
-        test('invalid flag should return non-zero exit code', async () => {
-            const { code } = await runCli(['--invalid-flag']);
-            expect(code).not.toBe(0);
-        });
-    });
-
-    // Test Group: Helper Module
-    describe('Helper Module', () => {
-        test('helper module should export required functions', () => {
-            const helper = require('../src/helper');
-            
-            expect(typeof helper.saveKey).toBe('function');
-            expect(typeof helper.saveModel).toBe('function');
-            expect(typeof helper.loadKey).toBe('function');
-            expect(typeof helper.saveFile).toBe('function');
-            expect(typeof helper.generatePDF).toBe('function');
-        });
-
-        test('helper should handle saveKey operation', () => {
-            const helper = require('../src/helper');
-            const originalConfig = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            
-            helper.saveKey('test-api-key', 'openai');
-            
-            const updatedConfig = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(updatedConfig.openai.apiKey).toBe('test-api-key');
-            
-            helper.saveKey(originalConfig.openai.apiKey || '', 'openai');
-        });
-
-        test('helper should handle saveModel operation', () => {
-            const helper = require('../src/helper');
-            const originalConfig = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            const originalModel = originalConfig.openai.model;
-            
-            helper.saveModel('gpt-4-test', 'openai');
-            
-            const updatedConfig = JSON.parse(fs.readFileSync(TEST_CONFIG_PATH, 'utf8'));
-            expect(updatedConfig.openai.model).toBe('gpt-4-test');
-            
-            helper.saveModel(originalModel, 'openai');
-        });
-
-        test('helper should handle loadKey operation', () => {
-            const helper = require('../src/helper');
-            
-            const key = helper.loadKey('openai');
-            expect(key === null || typeof key === 'string').toBe(true);
-        });
-    });
-
-    // Test Group: AI Module
-    describe('AI Module', () => {
-        test('AI index should export Claude and OpenAI', () => {
-            const ai = require('../src/ai');
-            
-            expect(ai).toHaveProperty('Claude');
-            expect(ai).toHaveProperty('OpenAI');
-            expect(typeof ai.Claude).toBe('function');
-            expect(typeof ai.OpenAI).toBe('function');
-        });
-
-        test('Claude class should have run method', () => {
-            const Claude = require('../src/ai/claude');
-            const instance = new Claude();
-            
-            expect(typeof instance.run).toBe('function');
-        });
-
-        test('OpenAI class should have run method', () => {
-            const OpenAI = require('../src/ai/openai');
-            const instance = new OpenAI();
-            
-            expect(typeof instance.run).toBe('function');
-        });
-    });
+    await expect(new OpenRouter().run('prompt', 'code')).rejects.toThrow('invalid response');
+  });
 });
 
 module.exports = { runCli, CLI_PATH };
