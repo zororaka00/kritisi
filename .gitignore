@@ -3,4 +3,5 @@ node_modules
 .osmium
 .vscode
 dist
+coverage
 .env
