@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.4.0](https://github.com/zororaka00/kritisi/compare/v2.3.0...v2.4.0) (2026-11-22)
+
+### Features
+
+* Added `--out`, `--dry-run`, `--force`, and `--verbose` options to `natspec` and `security`; `merger` gained `--out` and `--force`.
+* Added `kritisi config` to display effective provider settings and `kritisi config --reset --yes` to recover from a corrupted config file.
+* Added configurable request timeouts and retries (`KRITISI_TIMEOUT_MS`, `KRITISI_RETRIES`, `KRITISI_RETRY_DELAY_MS`) for all providers.
+* Added a configurable Claude output token cap (`ANTHROPIC_MAX_TOKENS`/`CLAUDE_MAX_TOKENS`, default 8192).
+* Unified provider constructors as `(config?, fetchImpl?)` for all four providers while keeping the legacy fetch-only form for OpenAI and DeepSeek.
+* Redesigned PDF security reports with a cover page, risk badge, executive summary, severity cards, structured finding blocks, paginated code panels, page headers/footers, and an in-report AI-assistance disclaimer.
+* PDF metadata now includes the audited source path, and `generatePDF` lives in a dedicated `pdf` module while remaining exported from the package root.
+* `parseSecurityReport` now tolerates missing severity arrays and extracts JSON with balanced-brace scanning.
+
+### Bug Fixes
+
+* Rejected non-`.sol` inputs so `security`, `natspec`, and `merger` can no longer overwrite the source file with generated output.
+* `natspec` now strips markdown code fences, validates that the response looks like Solidity, and keeps a `.sol.bak` backup before in-place updates.
+* Fixed stack traces for unknown providers in `setkey` and `setmodel`.
+* Config writes are atomic, and `generatePDF` rejects with a real error instead of a boolean.
+* Fixed PDF footers so they appear on every page.
+
+### Security
+
+* Updated transitive dependencies to clear the `brace-expansion` advisory (`npm audit` reports zero vulnerabilities).
+* API keys are hidden during `setkey` input on TTY terminals and fully redacted from provider error messages.
+
+### Tests
+
+* Added regression coverage for destructive-path guards, NatSpec sanitization and backup, dry-run and output flags, PDF creation, retry/timeout behavior, Claude token configuration, provider constructor parity, tolerant report parsing, and config reset.
+
 ## [2.3.0](https://github.com/zororaka00/kritisi/compare/v2.2.0...v2.3.0) (2026-08-09)
 
 ### Features
