@@ -1,7 +1,8 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import PDFDocument = require('pdfkit');
+import { merge } from 'sol-merger';
+import { version as currentVersion } from '../package.json';
 
 export type ProviderName = 'openrouter' | 'openai' | 'claude' | 'deepseek';
 
@@ -23,21 +24,88 @@ export interface SecurityReport {
   low: SecurityIssue[];
 }
 
+export interface PDFMetadata {
+  provider?: string;
+  model?: string;
+  version?: string;
+  source?: string;
+  generatedAt?: Date;
+}
+
+export interface RequestOptions {
+  timeoutMs: number;
+  retries: number;
+  retryDelayMs: number;
+}
+
+const INVALID_REPORT = 'AI returned an invalid security report.';
+
+export const KRITISI_VERSION = currentVersion;
+
+export const NATSPEC_PROMPT =
+  'You are an AI designed to add NatSpec documentation to Solidity code. For each function, include clear descriptions for the purpose of the function, the parameters, and the return values using proper NatSpec tags. Respond only with the modified Solidity code in a valid Solidity format. Do not include code block markers or explanations.';
+
+export const SECURITY_PROMPT =
+  'You are an AI designed to analyze Solidity code for business-logic issues and security vulnerabilities. Categorize findings as High, Medium, or Low. Respond with only a single JSON object (no markdown fences, no prose) with exactly these arrays: high, medium, low. Each item must contain issue, suggestion, and code_highlight strings. Use an empty array when no issues are found.';
+
+export function looksLikeSolidity(content: string): boolean {
+  return /\bpragma\s+solidity\b|\b(?:abstract\s+)?contract\s+\w+|\b(?:library|interface)\s+\w+/.test(content);
+}
+
+export async function mergeSources(filePath: string): Promise<string> {
+  return merge(filePath);
+}
+
+export function stripCodeFence(content: string): string {
+  const trimmed = content.trim();
+  const fenced = trimmed.match(/```[a-zA-Z0-9_+-]*\s*([\s\S]*?)```/);
+  return (fenced ? fenced[1] : trimmed).trim();
+}
+
+function matchingBraceEnd(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') inString = false;
+      continue;
+    }
+    if (character === '"') inString = true;
+    else if (character === '{') depth += 1;
+    else if (character === '}') {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
 /**
  * Models often wrap JSON in markdown fences or add brief prose. Normalize to a JSON object string.
+ * Candidate braces are scanned in order so prose containing braces does not break extraction.
  */
 export function extractJsonObject(content: string): string {
-  const trimmed = content.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```\s*$/i);
-  if (fenced) return fenced[1].trim();
-
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
-
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start !== -1 && end > start) return trimmed.slice(start, end + 1).trim();
-
-  return trimmed;
+  const candidate = stripCodeFence(content);
+  let fallback: string | null = null;
+  let start = candidate.indexOf('{');
+  while (start !== -1) {
+    const end = matchingBraceEnd(candidate, start);
+    if (end !== -1) {
+      const slice = candidate.slice(start, end + 1);
+      try {
+        JSON.parse(slice);
+        return slice;
+      } catch {
+        if (fallback === null) fallback = slice;
+      }
+    }
+    start = candidate.indexOf('{', start + 1);
+  }
+  return fallback ?? candidate;
 }
 
 export function parseSecurityReport(content: string): SecurityReport {
@@ -45,21 +113,25 @@ export function parseSecurityReport(content: string): SecurityReport {
   try {
     parsed = JSON.parse(extractJsonObject(content));
   } catch {
-    throw new Error('AI returned an invalid security report.');
+    throw new Error(INVALID_REPORT);
   }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('AI returned an invalid security report.');
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error(INVALID_REPORT);
   const report = parsed as Record<string, unknown>;
-  for (const category of ['high', 'medium', 'low']) {
-    if (!Array.isArray(report[category])) throw new Error('AI returned an invalid security report.');
-    for (const issue of report[category]) {
-      if (!issue || typeof issue !== 'object' || Array.isArray(issue)) throw new Error('AI returned an invalid security report.');
+  const normalized: SecurityReport = { high: [], medium: [], low: [] };
+  for (const category of ['high', 'medium', 'low'] as const) {
+    const value = report[category];
+    if (value === undefined || value === null) continue;
+    if (!Array.isArray(value)) throw new Error(INVALID_REPORT);
+    for (const issue of value) {
+      if (!issue || typeof issue !== 'object' || Array.isArray(issue)) throw new Error(INVALID_REPORT);
       const item = issue as Record<string, unknown>;
       if (typeof item.issue !== 'string' || typeof item.suggestion !== 'string' || typeof item.code_highlight !== 'string') {
-        throw new Error('AI returned an invalid security report.');
+        throw new Error(INVALID_REPORT);
       }
     }
+    normalized[category] = value as SecurityIssue[];
   }
-  return report as unknown as SecurityReport;
+  return normalized;
 }
 
 interface StoredProviderConfig {
@@ -75,43 +147,43 @@ interface StoredConfig extends StoredProviderConfig {
 const DEFAULTS: Record<ProviderName, Omit<ProviderConfig, 'apiKey'>> = {
   openrouter: {
     model: 'openai/gpt-5.6-sol',
-    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions'
   },
   openai: {
     model: 'gpt-5.6-sol',
-    baseUrl: 'https://api.openai.com/v1/chat/completions',
+    baseUrl: 'https://api.openai.com/v1/chat/completions'
   },
   claude: {
     model: 'claude-opus-5',
-    baseUrl: 'https://api.anthropic.com/v1/messages',
+    baseUrl: 'https://api.anthropic.com/v1/messages'
   },
   deepseek: {
     model: 'deepseek-v4-pro',
-    baseUrl: 'https://api.deepseek.com/chat/completions',
-  },
+    baseUrl: 'https://api.deepseek.com/chat/completions'
+  }
 };
 
 const ENV: Record<ProviderName, { apiKey: string[]; model: string[]; baseUrl: string[] }> = {
   openrouter: {
     apiKey: ['OPENROUTER_API_KEY'],
     model: ['OPENROUTER_MODEL'],
-    baseUrl: ['OPENROUTER_BASE_URL'],
+    baseUrl: ['OPENROUTER_BASE_URL']
   },
   openai: {
     apiKey: ['OPENAI_API_KEY'],
     model: ['OPENAI_MODEL'],
-    baseUrl: ['OPENAI_BASE_URL'],
+    baseUrl: ['OPENAI_BASE_URL']
   },
   claude: {
     apiKey: ['ANTHROPIC_API_KEY', 'CLAUDE_API_KEY'],
     model: ['ANTHROPIC_MODEL', 'CLAUDE_MODEL'],
-    baseUrl: ['ANTHROPIC_BASE_URL', 'CLAUDE_BASE_URL'],
+    baseUrl: ['ANTHROPIC_BASE_URL', 'CLAUDE_BASE_URL']
   },
   deepseek: {
     apiKey: ['DEEPSEEK_API_KEY'],
     model: ['DEEPSEEK_MODEL'],
-    baseUrl: ['DEEPSEEK_BASE_URL'],
-  },
+    baseUrl: ['DEEPSEEK_BASE_URL']
+  }
 };
 
 const configRoot = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -131,14 +203,37 @@ function readConfig(): StoredConfig {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('not an object');
     return value as StoredConfig;
   } catch {
-    throw new Error(`Invalid Kritisi config file: ${CONFIG_PATH}`);
+    throw new Error(`Invalid Kritisi config file: ${CONFIG_PATH}. Fix it or remove it with kritisi config --reset --yes.`);
   }
 }
 
 function writeConfig(config: StoredConfig): void {
-  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true, mode: 0o700 });
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });
-  fs.chmodSync(CONFIG_PATH, 0o600);
+  const directory = path.dirname(CONFIG_PATH);
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const temporaryPath = `${CONFIG_PATH}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temporaryPath, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });
+    fs.chmodSync(temporaryPath, 0o600);
+    fs.renameSync(temporaryPath, CONFIG_PATH);
+    fs.chmodSync(CONFIG_PATH, 0o600);
+  } catch (error) {
+    try {
+      fs.rmSync(temporaryPath, { force: true });
+    } catch {
+      // The temporary file may already be gone; the original error is what matters.
+    }
+    throw error;
+  }
+}
+
+export function configExists(): boolean {
+  return fs.existsSync(CONFIG_PATH);
+}
+
+export function clearConfig(): boolean {
+  if (!fs.existsSync(CONFIG_PATH)) return false;
+  fs.rmSync(CONFIG_PATH);
+  return true;
 }
 
 function nonEmpty(value: string | undefined): string | undefined {
@@ -153,6 +248,29 @@ function envValue(names: string[]): string | undefined {
   return undefined;
 }
 
+function envInt(names: string[], fallback: number, minimum: number): number {
+  for (const name of names) {
+    const raw = nonEmpty(process.env[name]);
+    if (!raw) continue;
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < minimum) throw new Error(`Invalid ${name}: expected an integer >= ${minimum}.`);
+    return value;
+  }
+  return fallback;
+}
+
+export function getRequestOptions(): RequestOptions {
+  return {
+    timeoutMs: envInt(['KRITISI_TIMEOUT_MS'], 120_000, 1),
+    retries: envInt(['KRITISI_RETRIES'], 2, 0),
+    retryDelayMs: envInt(['KRITISI_RETRY_DELAY_MS'], 500, 0)
+  };
+}
+
+export function getClaudeMaxTokens(): number {
+  return envInt(['ANTHROPIC_MAX_TOKENS', 'CLAUDE_MAX_TOKENS'], 8192, 1);
+}
+
 function storedProviderConfig(config: StoredConfig, provider: ProviderName): StoredProviderConfig {
   if (provider === 'openrouter') return config;
   return config.providers?.[provider] || {};
@@ -165,7 +283,7 @@ export function getProviderConfig(provider: ProviderName = 'openrouter'): Provid
   return {
     apiKey: envValue(env.apiKey) || nonEmpty(stored.apiKey) || null,
     model: envValue(env.model) || nonEmpty(stored.model) || DEFAULTS[provider].model,
-    baseUrl: envValue(env.baseUrl) || nonEmpty(stored.baseUrl) || DEFAULTS[provider].baseUrl,
+    baseUrl: envValue(env.baseUrl) || nonEmpty(stored.baseUrl) || DEFAULTS[provider].baseUrl
   };
 }
 
@@ -205,45 +323,19 @@ export function saveFile(filePath: string, content: string): void {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-export function generatePDF(result: SecurityReport, filePath: string): Promise<boolean> {
-  return new Promise((resolve, reject) => {
+export function saveFileAtomic(filePath: string, content: string): void {
+  const temporaryPath = `${filePath}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(temporaryPath, content, 'utf8');
+    fs.renameSync(temporaryPath, filePath);
+  } catch (error) {
     try {
-      fs.mkdirSync(path.dirname(filePath), { recursive: true });
-      const doc = new PDFDocument({ margin: 50 });
-      const output = fs.createWriteStream(filePath);
-      output.on('error', () => reject(false));
-      doc.pipe(output);
-      doc.fontSize(18).fillColor('#333').text('Solidity Code Analysis Report', { align: 'center' }).moveDown();
-      doc.fontSize(14).fillColor('#000').text('Analysis Results:', { underline: true }).moveDown(0.5);
-
-      const writeCategory = (title: string, color: string, issues: SecurityIssue[]): void => {
-        doc.fontSize(16).fillColor(color).text(title, { underline: true }).moveDown(0.5);
-        if (issues.length === 0) {
-          doc.fontSize(12).fillColor('#333').text('No issues found.', { indent: 20 });
-        } else {
-          issues.forEach((issue, index) => {
-            doc.fontSize(12).fillColor('#000').text(`Issue ${index + 1}: ${issue.issue}`, { indent: 20 }).moveDown(0.5);
-            doc.fontSize(12).fillColor('#000').text(`Suggestion: ${issue.suggestion}`, { indent: 40 }).moveDown(0.5);
-            doc.fontSize(10).fillColor('#555').font('Courier')
-              .text(`Code Highlight:\n${issue.code_highlight}`, { indent: 60, lineGap: 2 })
-              .font('Helvetica').moveDown(1);
-          });
-        }
-        doc.moveDown(1);
-      };
-
-      writeCategory('High Severity Issues', '#FF0000', result.high);
-      writeCategory('Medium Severity Issues', '#FFA500', result.medium);
-      writeCategory('Low Severity Issues', '#008000', result.low);
-      const addFooter = (): void => {
-        doc.fontSize(10).fillColor('#888').text('Generated by Kritisi', { align: 'center' });
-      };
-      doc.on('pageAdded', addFooter);
-      addFooter();
-      doc.end();
-      output.on('finish', () => resolve(true));
+      fs.rmSync(temporaryPath, { force: true });
     } catch {
-      reject(false);
+      // Keep the original error from the failed write or rename.
     }
-  });
+    throw error;
+  }
 }
+
+export { generatePDF } from './pdf';

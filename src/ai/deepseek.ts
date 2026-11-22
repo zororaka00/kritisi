@@ -1,9 +1,13 @@
 import fetch from 'node-fetch';
-import { getProviderConfig } from '../helper';
+import { getProviderConfig, ProviderConfig } from '../helper';
 import { FetchLike, OpenAICompatible } from './compatible';
 
 export class DeepSeek extends OpenAICompatible {
-  constructor(fetchImpl: FetchLike = fetch as FetchLike) {
-    super('DeepSeek', getProviderConfig('deepseek'), fetchImpl);
+  constructor(configOrFetch?: ProviderConfig | FetchLike, fetchImpl: FetchLike = fetch as FetchLike) {
+    if (typeof configOrFetch === 'function') {
+      super('DeepSeek', getProviderConfig('deepseek'), configOrFetch);
+    } else {
+      super('DeepSeek', configOrFetch ?? getProviderConfig('deepseek'), fetchImpl);
+    }
   }
 }

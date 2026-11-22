@@ -1,6 +1,6 @@
 import fetch, { RequestInit } from 'node-fetch';
-import { getProviderConfig, ProviderConfig } from '../helper';
-import { AIResponse, FetchLike } from './compatible';
+import { getClaudeMaxTokens, getProviderConfig, getRequestOptions, ProviderConfig } from '../helper';
+import { AIResponse, FetchLike, fetchWithRetry, redactSecrets } from './compatible';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -28,26 +28,32 @@ export class Claude {
   async run(promptText: string, codeSolidity: string): Promise<AIResponse> {
     if (!this.config.apiKey) throw new Error('No Claude API key found.');
 
+    const requestOptions = getRequestOptions();
+    const init: RequestInit = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.config.apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        max_tokens: getClaudeMaxTokens(),
+        system: promptText,
+        messages: [{ role: 'user', content: codeSolidity }]
+      }),
+      timeout: requestOptions.timeoutMs
+    };
+
     let response;
     try {
-      const init: RequestInit = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.config.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          max_tokens: 4096,
-          system: promptText,
-          messages: [{ role: 'user', content: codeSolidity }],
-        }),
-      };
-      response = await this.fetchImpl(this.config.baseUrl, init);
+      response = await fetchWithRetry(this.fetchImpl, this.config.baseUrl, init, 'Claude', requestOptions);
     } catch (error) {
+      if ((error as { type?: string }).type === 'request-timeout') {
+        throw new Error(`Claude request timed out after ${requestOptions.timeoutMs}ms.`);
+      }
       const message = error instanceof Error ? error.message : 'request failed';
-      throw new Error(`Claude request failed: ${message.slice(0, 300)}`);
+      throw new Error(`Claude request failed: ${redactSecrets(message, this.config.apiKey)}`);
     }
 
     let data: unknown;
@@ -57,10 +63,9 @@ export class Claude {
       throw new Error(`Claude HTTP ${response.status}: response was not valid JSON`);
     }
     if (!response.ok) {
-      const message = isRecord(data) && isRecord(data.error) && typeof data.error.message === 'string'
-        ? data.error.message
-        : 'Unknown Claude error';
-      throw new Error(`Claude HTTP ${response.status}: ${message.replace(this.config.apiKey, '[redacted]').slice(0, 300)}`);
+      const message =
+        isRecord(data) && isRecord(data.error) && typeof data.error.message === 'string' ? data.error.message : 'Unknown Claude error';
+      throw new Error(`Claude HTTP ${response.status}: ${redactSecrets(message, this.config.apiKey)}`);
     }
 
     const content = contentText(data);
@@ -73,9 +78,9 @@ export class Claude {
       usage: {
         prompt_tokens: promptTokens,
         completion_tokens: completionTokens,
-        total_tokens: promptTokens + completionTokens,
+        total_tokens: promptTokens + completionTokens
       },
-      content,
+      content
     };
   }
 }
