@@ -100,7 +100,7 @@ The config directory is created with mode `0700` and the file with mode `0600`. 
 
 ## Library usage
 
-The package's public library entrypoint is the package root (`dist/library.js` at build time). It exports the provider classes `OpenRouter`, `OpenAI`, `Claude`, and `DeepSeek`; `createProvider`; provider/config helpers (`getProviderConfig`, `getOpenRouterConfig`, `normalizeProvider`, `loadKey`, `saveKey`, `saveModel`, `saveBaseUrl`, `clearConfig`, `configExists`, `CONFIG_PATH`); runtime option helpers (`getRequestOptions`, `getClaudeMaxTokens`); and local utilities including `parseSecurityReport`, `extractJsonObject`, `stripCodeFence`, `generatePDF`, `saveFile`, and `saveFileAtomic`.
+The package's public library entrypoint is the package root (`dist/library.js` at build time). It exports the provider classes `OpenRouter`, `OpenAI`, `Claude`, and `DeepSeek`; `createProvider`; provider/config helpers (`getProviderConfig`, `getOpenRouterConfig`, `normalizeProvider`, `loadKey`, `saveKey`, `saveModel`, `saveBaseUrl`, `clearConfig`, `configExists`, `CONFIG_PATH`); runtime option helpers (`getRequestOptions`, `getClaudeMaxTokens`); and local utilities including `parseSecurityReport`, `extractJsonObject`, `stripCodeFence`, `formatForReportPath`, `renderMarkdownReport`, `writeMarkdownReport`, `generatePDF`, `saveFile`, and `saveFileAtomic`.
 
 CommonJS:
 
@@ -151,6 +151,26 @@ Markdown fences and brief surrounding prose are tolerated. Missing severity arra
 - Page headers, footers, and page numbers, plus an AI-assistance disclaimer on the summary page and in every footer.
 
 When no findings are reported, the summary shows a clear "No findings reported" state instead of an empty report.
+
+### Markdown reports
+
+Library consumers can render the same findings as Markdown instead of PDF:
+
+```js
+const { renderMarkdownReport, writeMarkdownReport, formatForReportPath } = require('kritisi');
+
+const format = formatForReportPath('reports/Vault.md'); // 'markdown'
+const metadata = {
+  target: 'contracts/Vault.sol',
+  provider: 'openrouter',
+  model: 'test/model',
+  version: '2.5.0',
+};
+const markdown = renderMarkdownReport(report, metadata);
+writeMarkdownReport('reports/Vault.md', report, metadata);
+```
+
+Markdown output includes metadata, risk level, severity summary, token usage, numbered findings, safe Solidity code fences, and the AI-assistance disclaimer. The `security` CLI command continues to write PDF; Markdown is available to library consumers and integrations such as `mcp-kritisi`.
 
 ## Limitations and responsible use
 

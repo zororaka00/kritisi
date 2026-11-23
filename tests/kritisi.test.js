@@ -795,4 +795,73 @@ describe('generatePDF', () => {
   });
 });
 
+describe('Markdown reports', () => {
+  const { formatForReportPath, renderMarkdownReport, writeMarkdownReport } = require('../dist/markdown');
+  const report = {
+    high: [
+      {
+        issue: 'Reentrancy\nin withdraw',
+        suggestion: 'Use checks-effects-interactions.',
+        code_highlight: 'target.call{value: amount}("");'
+      }
+    ],
+    medium: [],
+    low: []
+  };
+  const metadata = {
+    target: 'contracts/Vault.sol',
+    provider: 'openrouter',
+    model: 'test/model',
+    version: '2.5.0',
+    generatedAt: new Date('2026-11-23T00:00:00.000Z'),
+    usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+    details: [['Chain ID', '1']]
+  };
+
+  test('selects report format from the file extension', () => {
+    expect(formatForReportPath('report.pdf')).toBe('pdf');
+    expect(formatForReportPath('report.md')).toBe('markdown');
+    expect(formatForReportPath('report.MARKDOWN')).toBe('markdown');
+    expect(() => formatForReportPath('report.txt')).toThrow('Report path must end in .pdf, .md, or .markdown');
+  });
+
+  test('renders metadata, summary, findings, usage, and a disclaimer', () => {
+    const markdown = renderMarkdownReport(report, metadata);
+
+    expect(markdown).toContain('# Solidity Security Audit Report');
+    expect(markdown).toContain('**HIGH RISK**');
+    expect(markdown).toContain('| Target | contracts/Vault.sol |');
+    expect(markdown).toContain('| Chain ID | 1 |');
+    expect(markdown).toContain('| High | 1 |');
+    expect(markdown).toContain('| **Total** | **1** |');
+    expect(markdown).toContain('## Usage');
+    expect(markdown).toContain('Total tokens: 3');
+    expect(markdown).toContain('### H-01: Reentrancy in withdraw');
+    expect(markdown).toContain('**Suggestion:**');
+    expect(markdown).toContain('```solidity');
+    expect(markdown).toContain('AI-assisted preliminary review');
+  });
+
+  test('handles empty reports and nested code fences', () => {
+    const empty = renderMarkdownReport({ high: [], medium: [], low: [] }, metadata);
+    expect(empty).toContain('**CLEAN**');
+    expect(empty).toContain('No issues found.');
+
+    const fenced = renderMarkdownReport(
+      { high: [{ issue: 'Fence', suggestion: 's', code_highlight: '```\ninside\n```' }], medium: [], low: [] },
+      metadata
+    );
+    expect(fenced).toContain('````solidity');
+  });
+
+  test('writes a Markdown report file', () => {
+    const directory = tempDir();
+    const filePath = path.join(directory, 'report.md');
+
+    writeMarkdownReport(filePath, report, metadata);
+
+    expect(fs.readFileSync(filePath, 'utf8')).toContain('# Solidity Security Audit Report');
+  });
+});
+
 module.exports = { runCli, CLI_PATH };

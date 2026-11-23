@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.5.0](https://github.com/zororaka00/kritisi/compare/v2.4.0...v2.5.0) (2026-11-23)
+
+### Features
+
+* Added Markdown report rendering and writing APIs: `renderMarkdownReport`, `writeMarkdownReport`, and `formatForReportPath`.
+* Markdown reports include target/provider/model metadata, risk level, severity summary, token usage, numbered findings, safe Solidity code fences, and an AI-assistance disclaimer.
+
+### Tests
+
+* Added coverage for report extension selection, Markdown metadata and findings rendering, empty reports, nested code fences, and file writing.
+
 ## [2.4.0](https://github.com/zororaka00/kritisi/compare/v2.3.0...v2.4.0) (2026-11-22)
 
 ### Features
